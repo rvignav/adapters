@@ -158,6 +158,7 @@ class Adapter(nn.Module):
             query = hidden_states
 
         if self.original_ln_before:
+            # we don't have to think about this since it's never true in the above condition
             if layer_norm:
                 hidden_states = hidden_states + input_tensor
                 if self.residual_before_ln == "post_add":

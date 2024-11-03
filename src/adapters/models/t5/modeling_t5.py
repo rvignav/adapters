@@ -198,6 +198,8 @@ class T5AttentionWithAdapters(T5AttentionAdaptersMixin, T5Attention):
 
 
 class T5LayerSelfAttentionWithAdapters(T5SelfAttentionLayerAdaptersMixin, T5LayerSelfAttention):
+    fast_adapt = False
+    
     def forward(
         self,
         hidden_states,
@@ -209,6 +211,10 @@ class T5LayerSelfAttentionWithAdapters(T5SelfAttentionLayerAdaptersMixin, T5Laye
         output_attentions=False,
     ):
         normed_hidden_states = self.layer_norm(hidden_states)
+
+        if self.fast_adapt:
+            new_hidden_states = hidden_states.to('cuda:1', non_blocking=True)
+
         attention_output = self.SelfAttention(
             normed_hidden_states,
             mask=attention_mask,
@@ -219,7 +225,7 @@ class T5LayerSelfAttentionWithAdapters(T5SelfAttentionLayerAdaptersMixin, T5Laye
             output_attentions=output_attentions,
         )
         hidden_states = self.bottleneck_layer_forward(
-            hidden_states=self.dropout(attention_output[0]), residual_input=hidden_states, layer_norm=None
+            hidden_states=self.dropout(attention_output[0]), residual_input=new_hidden_states if self.fast_adapt else hidden_states, layer_norm=None
         )
         outputs = (hidden_states,) + attention_output[1:]  # add attentions if we output them
         return outputs
