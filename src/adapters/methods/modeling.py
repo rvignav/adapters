@@ -180,6 +180,8 @@ class Adapter(nn.Module):
             residual_input = residual_input.to('cuda:1', non_blocking=True)
 
         down = self.adapter_down(x)
+        if self.fast_adapt:
+            down = down.to("cuda:1")
 
         up = self.adapter_up(down)
         up = up * self.scaling

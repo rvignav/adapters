@@ -15,8 +15,10 @@
 """PyTorch T5 model."""
 
 import torch
+f = open('f.txt', 'a')
 from torch import nn
 from torch.utils.checkpoint import checkpoint
+import time
 
 from transformers.modeling_outputs import BaseModelOutputWithPastAndCrossAttentions
 from transformers.models.t5.modeling_t5 import (
@@ -166,6 +168,12 @@ class T5AttentionWithAdapters(T5AttentionAdaptersMixin, T5Attention):
                 position_bias = position_bias[:, :, -hidden_states.size(1) :, :]
 
             if mask is not None:
+                start_time = time.time()
+                if (mask.device != position_bias.device):
+                    mask = mask.to(position_bias.device)
+                end_time = time.time()
+                # print time to file 'f.txt'
+                f.write(f"Time taken to move mask to device: {end_time - start_time}\n")
                 position_bias = position_bias + mask  # (batch_size, n_heads, seq_length, key_length)
 
         if self.pruned_heads:
@@ -199,7 +207,7 @@ class T5AttentionWithAdapters(T5AttentionAdaptersMixin, T5Attention):
 
 class T5LayerSelfAttentionWithAdapters(T5SelfAttentionLayerAdaptersMixin, T5LayerSelfAttention):
     fast_adapt = False
-    
+
     def forward(
         self,
         hidden_states,
@@ -210,10 +218,11 @@ class T5LayerSelfAttentionWithAdapters(T5SelfAttentionLayerAdaptersMixin, T5Laye
         use_cache=False,
         output_attentions=False,
     ):
-        normed_hidden_states = self.layer_norm(hidden_states)
-
         if self.fast_adapt:
             new_hidden_states = hidden_states.to('cuda:1', non_blocking=True)
+
+        normed_hidden_states = self.layer_norm(hidden_states)
+        # normed_hidden_states = hidden_states
 
         attention_output = self.SelfAttention(
             normed_hidden_states,
@@ -245,6 +254,7 @@ class T5LayerCrossAttentionWithAdapters(T5CrossAttentionLayerAdaptersMixin, T5La
         output_attentions=False,
     ):
         normed_hidden_states = self.layer_norm(hidden_states)
+        # normed_hidden_states = hidden_states
         attention_output = self.EncDecAttention(
             normed_hidden_states,
             mask=attention_mask,
