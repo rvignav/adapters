@@ -50,6 +50,8 @@ class Adapter(nn.Module):
         self.adapter_residual_before_ln = config["adapter_residual_before_ln"]
         self.use_gating = config["use_gating"]
 
+        self.fast_adapt = False
+
         # Params related to input & output of adapter
         self.residual_before_ln = config["residual_before_ln"]
         self.original_ln_before = config["original_ln_before"]
@@ -173,6 +175,9 @@ class Adapter(nn.Module):
         return hidden_states, query, residual
 
     def forward(self, x, residual_input, output_gating=False):
+        if self.fast_adapt:
+            residual_input = residual_input.to('cuda:1', non_blocking=True)
+
         down = self.adapter_down(x)
 
         up = self.adapter_up(down)
