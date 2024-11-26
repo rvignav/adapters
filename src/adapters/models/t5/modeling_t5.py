@@ -51,10 +51,10 @@ class T5LayerFFWithAdapters(T5FFLayerAdaptersMixin, T5LayerFF):
         return hidden_states
 
 
-class T5AttentionWithAdapters(T5AttentionAdaptersMixin, T5Attention):
+class T5AttentionWithAdapters(T5Attention): # T5AttentionAdaptersMixin, 
     def forward(
         self,
-        hidden_states,
+        hidden_states, # WRONG DEVICE
         mask=None,
         key_value_states=None,
         position_bias=None,
@@ -64,6 +64,7 @@ class T5AttentionWithAdapters(T5AttentionAdaptersMixin, T5Attention):
         use_cache=False,
         output_attentions=False,
     ):
+        print("RIGHT INSIDE ENCDECATTENTION: ", hidden_states.device)
         """
         Self-attention (if key_value_states is None) or attention over source sentence (provided by key_value_states).
         """
@@ -118,6 +119,10 @@ class T5AttentionWithAdapters(T5AttentionAdaptersMixin, T5Attention):
             return hidden_states
 
         # get query states
+
+        print(self.q)
+        print(hidden_states.device)
+
         query_states = shape(self.q(hidden_states))  # (batch_size, n_heads, seq_length, dim_per_head)
 
         # get key/value states
@@ -135,7 +140,8 @@ class T5AttentionWithAdapters(T5AttentionAdaptersMixin, T5Attention):
 
         present_key_value_state = (key_states, value_states) if (self.is_decoder and use_cache) else None
 
-        key_states, value_states, mask = self.prefix_tuning(key_states, value_states, hidden_states, mask)
+        # key_states, value_states, mask = self.prefix_tuning(key_states, value_states, hidden_states, mask)
+
         (query_states,) = adjust_tensors_for_parallel(key_states, query_states)
         batch_size, key_length = key_states.shape[0], key_states.shape[2]
 
@@ -166,7 +172,7 @@ class T5AttentionWithAdapters(T5AttentionAdaptersMixin, T5Attention):
                 position_bias = position_bias[:, :, -hidden_states.size(1) :, :]
 
             if mask is not None:
-                position_bias = position_bias + mask  # (batch_size, n_heads, seq_length, key_length)
+                position_bias = position_bias + mask #.to(position_bias.device)   # VIGNAV     # (batch_size, n_heads, seq_length, key_length)
 
         if self.pruned_heads:
             mask = torch.ones(position_bias.shape[1])
@@ -210,10 +216,11 @@ class T5LayerSelfAttentionWithAdapters(T5SelfAttentionLayerAdaptersMixin, T5Laye
         use_cache=False,
         output_attentions=False,
     ):
+        print("LAYER: ", self.fast_adapt)
         normed_hidden_states = self.layer_norm(hidden_states)
 
         if self.fast_adapt:
-            new_hidden_states = hidden_states.to('cuda:1', non_blocking=True)
+            new_hidden_states = hidden_states.to('cuda:1') #, non_blocking=True)
 
         attention_output = self.SelfAttention(
             normed_hidden_states,
@@ -245,8 +252,24 @@ class T5LayerCrossAttentionWithAdapters(T5CrossAttentionLayerAdaptersMixin, T5La
         output_attentions=False,
     ):
         normed_hidden_states = self.layer_norm(hidden_states)
-        attention_output = self.EncDecAttention(
-            normed_hidden_states,
+
+        print("Finished layer norm in crossattention")
+
+        print("hidden states device before encdecattention: ", normed_hidden_states.device)
+
+        # for name, param in self.EncDecAttention.named_parameters():
+        #     print(f"Parameter {name} is on device {param.device}")
+        # for name, buffer in self.EncDecAttention.named_buffers():
+        #     print(f"Buffer {name} is on device {buffer.device}")
+
+        # print("Registered pre-forward hooks:")
+        # print(self.EncDecAttention._forward_pre_hooks)
+
+        print("MRO:")
+        print(T5AttentionWithAdapters.__mro__)
+
+        attention_output = self.EncDecAttention( # Somehow this changes the device of normed_hidden_states
+            hidden_states=normed_hidden_states,
             mask=attention_mask,
             key_value_states=key_value_states,
             position_bias=position_bias,
@@ -256,9 +279,15 @@ class T5LayerCrossAttentionWithAdapters(T5CrossAttentionLayerAdaptersMixin, T5La
             query_length=query_length,
             output_attentions=output_attentions,
         )
+
+        print("Finished encdec attention in crossattention")
+
         layer_output = self.bottleneck_layer_forward(
             hidden_states=self.dropout(attention_output[0]), residual_input=hidden_states, layer_norm=None
         )
+
+        print("Finished bottleneck layer forward in crossattention")
+
         outputs = (layer_output,) + attention_output[1:]  # add attentions if we output them
         return outputs
 

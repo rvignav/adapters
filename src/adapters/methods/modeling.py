@@ -177,7 +177,7 @@ class Adapter(nn.Module):
 
     def forward(self, x, residual_input, output_gating=False):
         if self.fast_adapt:
-            residual_input = residual_input.to('cuda:1', non_blocking=True)
+            residual_input = residual_input.to('cuda:1') # , non_blocking=True)
 
         down = self.adapter_down(x)
 

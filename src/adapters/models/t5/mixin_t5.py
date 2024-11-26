@@ -21,14 +21,16 @@ class T5AttentionAdaptersMixin:
 
     def init_adapters(self, model_config, adapters_config):
         # Wrap layers for LoRA
-        self.q = LoRALinear.wrap(self.q, "selfattn", model_config, adapters_config, attn_key="q", bias=False)
-        self.k = LoRALinear.wrap(self.k, "selfattn", model_config, adapters_config, attn_key="k", bias=False)
-        self.v = LoRALinear.wrap(self.v, "selfattn", model_config, adapters_config, attn_key="v", bias=False)
+        # self.q = LoRALinear.wrap(self.q, "selfattn", model_config, adapters_config, attn_key="q", bias=False)
+        # self.k = LoRALinear.wrap(self.k, "selfattn", model_config, adapters_config, attn_key="k", bias=False)
+        # self.v = LoRALinear.wrap(self.v, "selfattn", model_config, adapters_config, attn_key="v", bias=False)
 
-        self.prefix_tuning = PrefixTuningLayer(
-            self.location_key + "_prefix" if self.location_key else None, model_config, adapters_config
-        )
-        patch_forward(self)
+        # self.prefix_tuning = PrefixTuningLayer(
+        #     self.location_key + "_prefix" if self.location_key else None, model_config, adapters_config
+        # )
+        
+        # patch_forward(self)
+        pass
 
 
 class T5SelfAttentionLayerAdaptersMixin(BottleneckLayer):
@@ -49,7 +51,7 @@ class T5CrossAttentionLayerAdaptersMixin(BottleneckLayer):
         self.location_key = "cross_adapter"
         self.EncDecAttention.location_key = "cross"
         super().init_adapters(model_config, adapters_config)
-        patch_forward(self)
+        # patch_forward(self)
 
 
 class T5FFLayerAdaptersMixin(BottleneckLayer):

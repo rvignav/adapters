@@ -507,6 +507,8 @@ class LoRALinear(LoRALayer, ComposableAdapterLayerBase):
         return state._replace(hidden_states=hidden_states, last=adapter_setup)
 
     def forward(self, input_states: torch.Tensor):
+        print("LORA LINEAR FORWARD: ", input_states.device)
+        print(self.weight.device)
         if self.fan_in_fan_out:
             weight = torch.transpose(self.weight, -2, -1) if self.fan_in_fan_out else self.weight
             # result shape: <batch_size> x <seq_len> x <head_dim>
