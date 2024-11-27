@@ -65,6 +65,12 @@ class T5AttentionWithAdapters(T5Attention): # T5AttentionAdaptersMixin,
         output_attentions=False,
     ):
         print("RIGHT INSIDE ENCDECATTENTION: ", hidden_states.device)
+        # print(f"mask.device: {mask.device if mask is not None else 'None'}")
+        # print(f"key_value_states.device: {key_value_states.device if key_value_states is not None else 'None'}")
+        # print(f"position_bias.device: {position_bias.device if position_bias is not None else 'None'}")
+        # if past_key_value is not None:
+        #     print(f"past_key_value[0].device: {past_key_value[0].device}")
+        #     print(f"past_key_value[1].device: {past_key_value[1].device}")
         """
         Self-attention (if key_value_states is None) or attention over source sentence (provided by key_value_states).
         """
@@ -120,8 +126,8 @@ class T5AttentionWithAdapters(T5Attention): # T5AttentionAdaptersMixin,
 
         # get query states
 
-        print(self.q)
-        print(hidden_states.device)
+        # print(self.q)
+        # print(hidden_states.device)
 
         query_states = shape(self.q(hidden_states))  # (batch_size, n_heads, seq_length, dim_per_head)
 
@@ -200,6 +206,9 @@ class T5AttentionWithAdapters(T5Attention): # T5AttentionAdaptersMixin,
 
         if output_attentions:
             outputs = outputs + (attn_weights,)
+        
+        # print("RIGHT BEFORE RETURNING FROM ENCDECATTENTION")
+
         return outputs
 
 
@@ -219,6 +228,8 @@ class T5LayerSelfAttentionWithAdapters(T5SelfAttentionLayerAdaptersMixin, T5Laye
         print("LAYER: ", self.fast_adapt)
         normed_hidden_states = self.layer_norm(hidden_states)
 
+        # print("finished layer norm")
+
         if self.fast_adapt:
             new_hidden_states = hidden_states.to('cuda:1') #, non_blocking=True)
 
@@ -231,9 +242,15 @@ class T5LayerSelfAttentionWithAdapters(T5SelfAttentionLayerAdaptersMixin, T5Laye
             use_cache=use_cache,
             output_attentions=output_attentions,
         )
+
+        # print("finished self-attention")
+
         hidden_states = self.bottleneck_layer_forward(
             hidden_states=self.dropout(attention_output[0]), residual_input=new_hidden_states if self.fast_adapt else hidden_states, layer_norm=None
         )
+
+        # print("finished bottleneck layer forward")
+
         outputs = (hidden_states,) + attention_output[1:]  # add attentions if we output them
         return outputs
 
@@ -262,11 +279,23 @@ class T5LayerCrossAttentionWithAdapters(T5CrossAttentionLayerAdaptersMixin, T5La
         # for name, buffer in self.EncDecAttention.named_buffers():
         #     print(f"Buffer {name} is on device {buffer.device}")
 
-        # print("Registered pre-forward hooks:")
-        # print(self.EncDecAttention._forward_pre_hooks)
+        print("Registered pre-forward hooks:")
+        print(self.EncDecAttention._forward_pre_hooks)
 
-        print("MRO:")
-        print(T5AttentionWithAdapters.__mro__)
+        # print("MRO:")
+        # print(T5AttentionWithAdapters.__mro__)
+
+        # print(f"normed_hidden_states.device: {normed_hidden_states.device}")
+        # print(f"attention_mask.device: {attention_mask.device if attention_mask is not None else 'None'}")
+        # if key_value_states is not None:
+        #     print(f"key_value_states.device: {key_value_states.device}")
+        # if position_bias is not None:
+        #     print(f"position_bias.device: {position_bias.device}")
+        # if past_key_value is not None:
+        #     print(f"past_key_value[0].device: {past_key_value[0].device}")
+        #     print(f"past_key_value[1].device: {past_key_value[1].device}")
+
+        # import pdb; pdb.set_trace()
 
         attention_output = self.EncDecAttention( # Somehow this changes the device of normed_hidden_states
             hidden_states=normed_hidden_states,

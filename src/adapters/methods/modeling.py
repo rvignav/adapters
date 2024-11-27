@@ -181,6 +181,8 @@ class Adapter(nn.Module):
 
         down = self.adapter_down(x)
 
+        down = down.to('cuda:1')
+
         up = self.adapter_up(down)
         up = up * self.scaling
         output = self.dropout(up)

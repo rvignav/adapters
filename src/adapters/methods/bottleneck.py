@@ -320,10 +320,18 @@ class BottleneckLayer(ComposableAdapterLayerBase, nn.Module):
         Returns:
             torch.Tensor: Output hidden states of the adapter layer.
         """
+
+        # print("hidden_states", hidden_states.device)
+        # print("residual_input", residual_input.device)
+
         # Batch sizes might be different due to prefix tuning w. Parallel block
         (residual_input,) = adjust_tensors_for_parallel(hidden_states, residual_input)
         # Replicate in both directions as residual might be larger (e.g. GPT-J)
         (hidden_states,) = adjust_tensors_for_parallel(residual_input, hidden_states)
+
+        # print("hidden_states", hidden_states.device)
+        # print("residual_input", residual_input.device)
+
         adapter_setup = self.get_active_setup()
         if adapter_setup is not None:
             input_hidden_states = hidden_states
