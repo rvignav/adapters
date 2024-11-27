@@ -64,7 +64,7 @@ class T5AttentionWithAdapters(T5Attention): # T5AttentionAdaptersMixin,
         use_cache=False,
         output_attentions=False,
     ):
-        print("RIGHT INSIDE ENCDECATTENTION: ", hidden_states.device)
+        # print("RIGHT INSIDE ENCDECATTENTION: ", hidden_states.device)
         # print(f"mask.device: {mask.device if mask is not None else 'None'}")
         # print(f"key_value_states.device: {key_value_states.device if key_value_states is not None else 'None'}")
         # print(f"position_bias.device: {position_bias.device if position_bias is not None else 'None'}")
@@ -156,38 +156,40 @@ class T5AttentionWithAdapters(T5Attention): # T5AttentionAdaptersMixin,
             query_states, key_states.transpose(3, 2)
         )  # equivalent of torch.einsum("bnqd,bnkd->bnqk", query_states, key_states), compatible with onnx op>9
 
-        # For Prefix Tuning, when training with AdapterDrop, we must additionally check that the sequence lengths of
-        # both positional encoding and the scores account for the prefix tokens.
-        # This is because the positional encoding is calculated only once in the beginning and then used for all layers.
-        # However, if the encoding was calculated without the prefix tokens due to AdapterDrop having dropped an
-        # adapter layer in the beginning, the positional encoding will be shorter than the scores, resulting in a
-        # dimension mismatch when adding the positional encoding to the scores.
-        if position_bias is None or position_bias.shape[3] != scores.shape[3]:
-            if not self.has_relative_attention_bias:
-                position_bias = torch.zeros(
-                    (1, self.n_heads, real_seq_length, key_length), device=scores.device, dtype=scores.dtype
-                )
-                if self.gradient_checkpointing and self.training:
-                    position_bias.requires_grad = True
-            else:
-                position_bias = self.compute_bias(real_seq_length, key_length, device=scores.device)
+        # # For Prefix Tuning, when training with AdapterDrop, we must additionally check that the sequence lengths of
+        # # both positional encoding and the scores account for the prefix tokens.
+        # # This is because the positional encoding is calculated only once in the beginning and then used for all layers.
+        # # However, if the encoding was calculated without the prefix tokens due to AdapterDrop having dropped an
+        # # adapter layer in the beginning, the positional encoding will be shorter than the scores, resulting in a
+        # # dimension mismatch when adding the positional encoding to the scores.
+        # if position_bias is None or position_bias.shape[3] != scores.shape[3]:
+        #     if not self.has_relative_attention_bias:
+        #         position_bias = torch.zeros(
+        #             (1, self.n_heads, real_seq_length, key_length), device=scores.device, dtype=scores.dtype
+        #         )
+        #         if self.gradient_checkpointing and self.training:
+        #             position_bias.requires_grad = True
+        #     else:
+        #         position_bias = self.compute_bias(real_seq_length, key_length, device=scores.device)
 
-            # if key and values are already calculated
-            # we want only the last query position bias
-            if past_key_value is not None:
-                position_bias = position_bias[:, :, -hidden_states.size(1) :, :]
+        #     # if key and values are already calculated
+        #     # we want only the last query position bias
+        #     if past_key_value is not None:
+        #         position_bias = position_bias[:, :, -hidden_states.size(1) :, :]
 
-            if mask is not None:
-                position_bias = position_bias + mask #.to(position_bias.device)   # VIGNAV     # (batch_size, n_heads, seq_length, key_length)
+        #     if mask is not None:
+        #         position_bias = position_bias + mask #.to(position_bias.device)   # VIGNAV     # (batch_size, n_heads, seq_length, key_length)
 
-        if self.pruned_heads:
-            mask = torch.ones(position_bias.shape[1])
-            mask[list(self.pruned_heads)] = 0
-            position_bias_masked = position_bias[:, mask.bool()]
-        else:
-            position_bias_masked = position_bias
+        # if self.pruned_heads:
+        #     mask = torch.ones(position_bias.shape[1])
+        #     mask[list(self.pruned_heads)] = 0
+        #     position_bias_masked = position_bias[:, mask.bool()]
+        # else:
+        #     position_bias_masked = position_bias
 
-        scores += position_bias_masked
+        # scores += position_bias_masked
+
+
         attn_weights = nn.functional.softmax(scores.float(), dim=-1).type_as(
             scores
         )  # (batch_size, n_heads, seq_length, key_length)
@@ -225,7 +227,7 @@ class T5LayerSelfAttentionWithAdapters(T5SelfAttentionLayerAdaptersMixin, T5Laye
         use_cache=False,
         output_attentions=False,
     ):
-        print("LAYER: ", self.fast_adapt)
+        # print("LAYER: ", self.fast_adapt)
         normed_hidden_states = self.layer_norm(hidden_states)
 
         # print("finished layer norm")
@@ -270,17 +272,17 @@ class T5LayerCrossAttentionWithAdapters(T5CrossAttentionLayerAdaptersMixin, T5La
     ):
         normed_hidden_states = self.layer_norm(hidden_states)
 
-        print("Finished layer norm in crossattention")
+        # print("Finished layer norm in crossattention")
 
-        print("hidden states device before encdecattention: ", normed_hidden_states.device)
+        # print("BEFORE ENCDECATTENTION: ")
 
         # for name, param in self.EncDecAttention.named_parameters():
         #     print(f"Parameter {name} is on device {param.device}")
         # for name, buffer in self.EncDecAttention.named_buffers():
         #     print(f"Buffer {name} is on device {buffer.device}")
 
-        print("Registered pre-forward hooks:")
-        print(self.EncDecAttention._forward_pre_hooks)
+        # print("Registered pre-forward hooks:")
+        # print(self.EncDecAttention._forward_pre_hooks)
 
         # print("MRO:")
         # print(T5AttentionWithAdapters.__mro__)
@@ -309,13 +311,13 @@ class T5LayerCrossAttentionWithAdapters(T5CrossAttentionLayerAdaptersMixin, T5La
             output_attentions=output_attentions,
         )
 
-        print("Finished encdec attention in crossattention")
+        # print("Finished encdec attention in crossattention")
 
         layer_output = self.bottleneck_layer_forward(
             hidden_states=self.dropout(attention_output[0]), residual_input=hidden_states, layer_norm=None
         )
 
-        print("Finished bottleneck layer forward in crossattention")
+        # print("Finished bottleneck layer forward in crossattention")
 
         outputs = (layer_output,) + attention_output[1:]  # add attentions if we output them
         return outputs
