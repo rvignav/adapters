@@ -215,6 +215,10 @@ class T5AttentionWithAdapters(T5Attention): # T5AttentionAdaptersMixin,
 
 
 class T5LayerSelfAttentionWithAdapters(T5SelfAttentionLayerAdaptersMixin, T5LayerSelfAttention):
+    def __init__():
+        super().__init__()
+        # print("bfodsljfjaklsjd")
+
     fast_adapt = False
     
     def forward(
@@ -227,6 +231,8 @@ class T5LayerSelfAttentionWithAdapters(T5SelfAttentionLayerAdaptersMixin, T5Laye
         use_cache=False,
         output_attentions=False,
     ):
+        # assert False
+        
         # print("LAYER: ", self.fast_adapt)
         normed_hidden_states = self.layer_norm(hidden_states)
 
