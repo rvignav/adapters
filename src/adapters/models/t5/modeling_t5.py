@@ -145,40 +145,6 @@ class T5AttentionWithAdapters(T5Attention): # T5AttentionAdaptersMixin,
             query_states, key_states.transpose(3, 2)
         )  # equivalent of torch.einsum("bnqd,bnkd->bnqk", query_states, key_states), compatible with onnx op>9
 
-        # # For Prefix Tuning, when training with AdapterDrop, we must additionally check that the sequence lengths of
-        # # both positional encoding and the scores account for the prefix tokens.
-        # # This is because the positional encoding is calculated only once in the beginning and then used for all layers.
-        # # However, if the encoding was calculated without the prefix tokens due to AdapterDrop having dropped an
-        # # adapter layer in the beginning, the positional encoding will be shorter than the scores, resulting in a
-        # # dimension mismatch when adding the positional encoding to the scores.
-        # if position_bias is None or position_bias.shape[3] != scores.shape[3]:
-        #     if not self.has_relative_attention_bias:
-        #         position_bias = torch.zeros(
-        #             (1, self.n_heads, real_seq_length, key_length), device=scores.device, dtype=scores.dtype
-        #         )
-        #         if self.gradient_checkpointing and self.training:
-        #             position_bias.requires_grad = True
-        #     else:
-        #         position_bias = self.compute_bias(real_seq_length, key_length, device=scores.device)
-
-        #     # if key and values are already calculated
-        #     # we want only the last query position bias
-        #     if past_key_value is not None:
-        #         position_bias = position_bias[:, :, -hidden_states.size(1) :, :]
-
-        #     if mask is not None:
-        #         position_bias = position_bias + mask #.to(position_bias.device)   # VIGNAV     # (batch_size, n_heads, seq_length, key_length)
-
-        # if self.pruned_heads:
-        #     mask = torch.ones(position_bias.shape[1])
-        #     mask[list(self.pruned_heads)] = 0
-        #     position_bias_masked = position_bias[:, mask.bool()]
-        # else:
-        #     position_bias_masked = position_bias
-
-        # scores += position_bias_masked
-
-
         attn_weights = nn.functional.softmax(scores.float(), dim=-1).type_as(
             scores
         )  # (batch_size, n_heads, seq_length, key_length)
