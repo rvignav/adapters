@@ -177,12 +177,12 @@ class Adapter(nn.Module):
 
     def forward(self, x, residual_input, output_gating=False):
         if self.fast_adapt:
-            residual_input = residual_input.to('cuda:1', non_blocking=True)
+            residual_input = residual_input.to('cuda:1', non_blocking=True) # Adapter residual communication (asynchronous)
 
         down = self.adapter_down(x)
 
         if self.fast_adapt:
-            down = down.to('cuda:1')
+            down = down.to('cuda:1') # Adapter bottlenecked residual stream communication (synchronous)
 
         up = self.adapter_up(down)
         up = up * self.scaling
@@ -228,8 +228,6 @@ class Adapter(nn.Module):
             if layer_norm:
                 hidden_states = layer_norm(hidden_states + input_tensor)
             else:
-                # print("hidden_states", hidden_states.device)
-                # print("input_tensor", input_tensor.device)
                 hidden_states = hidden_states + input_tensor
 
         return hidden_states
